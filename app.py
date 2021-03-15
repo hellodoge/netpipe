@@ -21,8 +21,8 @@ db = SQLAlchemy(app)
 
 class Entity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    public = db.Column(db.Binary(length=config.LEN_OF_SECRET), nullable=False)
-    private = db.Column(db.Binary(length=config.LEN_OF_SECRET), nullable=False)
+    public = db.Column(db.LargeBinary(length=config.LEN_OF_SECRET), nullable=False)
+    private = db.Column(db.LargeBinary(length=config.LEN_OF_SECRET), nullable=False)
     text = db.Column(db.UnicodeText)
 
     @staticmethod
