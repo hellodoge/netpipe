@@ -2,10 +2,16 @@
 # Licensed under the Apache License, Version 2.0
 
 from flask import Flask
-from flask import render_template, abort, jsonify
+from flask import render_template, abort, request
+
 from flask_sqlalchemy import SQLAlchemy
+
+import config
 from config import Configuration
-from random import getrandbits
+
+import base64
+import binascii
+from os import urandom
 
 app = Flask(__name__)
 app.config.from_object(Configuration)
@@ -15,67 +21,111 @@ db = SQLAlchemy(app)
 
 class Entity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    public = db.Column(db.Integer, nullable=False)
-    private = db.Column(db.Integer, nullable=False)
-    text = db.Column(db.Text)
+    public = db.Column(db.Binary(length=config.LEN_OF_SECRET), nullable=False)
+    private = db.Column(db.Binary(length=config.LEN_OF_SECRET), nullable=False)
+    text = db.Column(db.UnicodeText)
 
-    def get_public(self):
-        return self.public
+    @staticmethod
+    def get_text(entity_id: int, public_key: bytes) -> str:
+        entity = Entity.query.get_or_404(entity_id)
+        if entity.public != public_key:
+            abort(404)
+        return str(entity.text)
 
-    def get_private(self):
-        return self.private
+    @staticmethod
+    def set_text(entity_id: int, private_key: bytes, text: str) -> None:
+        entity = Entity.query.get_or_404(entity_id)
+        if entity.private != private_key:
+            abort(404)
+        entity.text = text
+        db.session.commit()
+
+    @staticmethod
+    def append_text(entity_id: int, private_key: bytes, text: str) -> None:
+        entity = Entity.query.get_or_404(entity_id)
+        if entity.private != private_key:
+            abort(404)
+        entity.text = entity.text + text  # TODO: do it query level
+        db.session.commit()
+
+    @staticmethod
+    def new():
+        entity = Entity(
+            public=urandom(config.LEN_OF_SECRET),
+            private=urandom(config.LEN_OF_SECRET)
+        )
+        db.session.add(entity)
+        db.session.commit()
+        return entity
 
 
-# noinspection PyUnboundLocalVariable
-def get_entity(link, func):
+def decode_link(link: str) -> (int, bytes):
+    if len(link) < config.BASE64_LEN_OF_SECRET + 1:
+        abort(404)
+
+    secret, entity_id = None, None
+
     try:
-        entity_id = int(link[:-8], 16)
-        sign = int(link[-8:], 16)
+        secret = base64.urlsafe_b64decode(link)
+    except binascii.Error:
+        abort(404)
+
+    id_encoded = link[config.BASE64_LEN_OF_SECRET:]
+    try:
+        entity_id = int(id_encoded, 16)
     except ValueError:
         abort(404)
-    entity = Entity.query.get_or_404(entity_id)
-    if sign != func(entity):
-        abort(404)
-    return entity
+
+    return entity_id, secret
 
 
-def wrap(entity_id, link):
-    link = hex(link)[2:]
-    return hex(entity_id)[2:] + '0'*(8-len(link)) + link
+def encode_link(entity_id: int, secret: bytes) -> str:
+    secret_encoded = base64.urlsafe_b64encode(secret).decode('ascii')
+    id_encoded = hex(entity_id)
+
+    return secret_encoded + id_encoded[2:]
 
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
     return render_template('index.html', url=Configuration.SITE_URL)
 
 
-@app.route('/create')
+@app.route('/create', methods=['GET'])
 def create():
-    public = getrandbits(31)
-    private = getrandbits(31)
-    entity = Entity(public=public, private=private)
-    db.session.add(entity)
-    db.session.commit()
-    return jsonify(
-        {'Public link': f'{Configuration.SITE_URL}/{wrap(entity.id, public)}',
-         'Private link': f'{Configuration.SITE_URL}/{wrap(entity.id, private)}'}
-    )
+    entity = Entity.new()
+
+    return {
+        'Public link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.public)}',
+        'Private link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.private)}'
+    }
 
 
-@app.route('/<entity_public>')
+@app.route('/<entity_public>', methods=['GET'])
 def fetch(entity_public):
-    entity = get_entity(entity_public, Entity.get_public)
-    return str(entity.text)
+    entity_id, public = decode_link(entity_public)
+    return Entity.get_text(entity_id, public)
 
 
-@app.route('/<entity_private>/<text>')
-def update(entity_private, text):
-    entity = get_entity(entity_private, Entity.get_private)
-    entity.text = text
-    db.session.commit()
-    return jsonify(
-        {'Public link': f'{Configuration.SITE_URL}/{wrap(entity.id, entity.public)}'}
-    )
+@app.route('/<entity_private>/<text>', methods=['GET'])
+def update_get(entity_private, text):
+    entity_id, private = decode_link(entity_private)
+    Entity.set_text(entity_id, private, text)
+    return '', 200
+
+
+@app.route('/<entity_private>', methods=['POST'])
+def update_post(entity_private):
+    entity_id, private = decode_link(entity_private)
+    Entity.set_text(entity_id, private, request.get_data(as_text=True))
+    return '', 200
+
+
+@app.route('/<entity_private>', methods=['PATCH'])
+def append(entity_private):
+    entity_id, private = decode_link(entity_private)
+    Entity.append_text(entity_id, private, request.get_data(as_text=True))
+    return '', 200
 
 
 if __name__ == '__main__':
