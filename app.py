@@ -49,11 +49,13 @@ class Entity(db.Model):
         db.session.commit()
 
     @staticmethod
-    def new():
+    def new(text=None):
         entity = Entity(
             public=urandom(config.LEN_OF_SECRET),
             private=urandom(config.LEN_OF_SECRET)
         )
+        if text is not None:
+            entity.text = text
         db.session.add(entity)
         db.session.commit()
         return entity
