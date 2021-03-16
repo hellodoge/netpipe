@@ -6,6 +6,8 @@ from flask import render_template, abort, request
 
 from flask_sqlalchemy import SQLAlchemy
 
+import markdown
+
 import config
 from config import Configuration
 
@@ -90,7 +92,9 @@ def encode_link(entity_id: int, secret: bytes) -> str:
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html', url=Configuration.SITE_URL)
+    with open('README.md', 'r') as readme:
+        content = markdown.markdown(readme.read(), extensions=['tables'])
+        return render_template('index.html', content=content, site_url=Configuration.SITE_URL)
 
 
 @app.route('/create', methods=['GET', 'POST'])
