@@ -94,7 +94,7 @@ def encode_link(entity_id: int, secret: bytes) -> str:
 def index():
     with open('README.md', 'r') as readme:
         content = markdown.markdown(readme.read(), extensions=['tables'])
-        return render_template('index.html', content=content)
+        return render_template('index.html', content=content, site_url=Configuration.SITE_URL)
 
 
 @app.route('/create', methods=['GET', 'POST'])
