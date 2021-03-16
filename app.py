@@ -49,11 +49,13 @@ class Entity(db.Model):
         db.session.commit()
 
     @staticmethod
-    def new():
+    def new(text=None):
         entity = Entity(
             public=urandom(config.LEN_OF_SECRET),
             private=urandom(config.LEN_OF_SECRET)
         )
+        if text is not None:
+            entity.text = text
         db.session.add(entity)
         db.session.commit()
         return entity
@@ -91,9 +93,9 @@ def index():
     return render_template('index.html', url=Configuration.SITE_URL)
 
 
-@app.route('/create', methods=['GET'])
+@app.route('/create', methods=['GET', 'POST'])
 def create():
-    entity = Entity.new()
+    entity = Entity.new(text=request.get_data(as_text=True) if request.method == 'POST' else None)
 
     return {
         'Public link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.public)}',
@@ -114,8 +116,8 @@ def update_get(entity_private, text):
     return '', 200
 
 
-@app.route('/<entity_private>', methods=['POST'])
-def update_post(entity_private):
+@app.route('/<entity_private>', methods=['PUT'])
+def update_put(entity_private):
     entity_id, private = decode_link(entity_private)
     Entity.set_text(entity_id, private, request.get_data(as_text=True))
     return '', 200
