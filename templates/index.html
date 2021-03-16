@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <title>ShPaste Home Page</title>
 </head>
+<style>
+    table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse
+    }
+</style>
 <body>
-    <h1>ShPaste</h1>
-    <p>To create new paste, open <a href="{{ url }}/create">{{ url }}/create</a></p>
-    <p>To get content of an existing paste, open <i>{{ url }}/[public link]</i></p>
-    <p>To change content of paste, open <i>{{ url }}/[private link]/[new content]</i></p>
+    {{ content | safe }}
 </body>
 </html>
