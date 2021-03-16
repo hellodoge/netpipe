@@ -93,9 +93,9 @@ def index():
     return render_template('index.html', url=Configuration.SITE_URL)
 
 
-@app.route('/create', methods=['GET'])
+@app.route('/create', methods=['GET', 'POST'])
 def create():
-    entity = Entity.new()
+    entity = Entity.new(text=request.get_data(as_text=True) if request.method == 'POST' else None)
 
     return {
         'Public link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.public)}',
