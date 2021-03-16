@@ -1,4 +1,4 @@
-## shpaste
+## netpipe
 
 API-oriented raw text storage site
 
