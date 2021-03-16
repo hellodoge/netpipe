@@ -23,4 +23,4 @@ Endpoint                 | Method | Description
 /<public link\>          | GET    | Get raw paste content
 /<private link\>         | PUT    | Replace paste with request body
 /<private link\>         | PATCH  | Append request body to paste
-/<private link\>/<text\> | PATCH  | Replace paste with \`text\`
+/<private link\>/<text\> | GET    | Replace paste with \`text\`
