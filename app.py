@@ -32,7 +32,7 @@ class Entity(db.Model):
         entity = Entity.query.get_or_404(entity_id)
         if entity.public != public_key:
             abort(404)
-        return str(entity.text)
+        return entity.text if entity.text is not None else ''
 
     @staticmethod
     def set_text(entity_id: int, private_key: bytes, text: str) -> None:
