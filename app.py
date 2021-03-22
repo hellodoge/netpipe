@@ -47,7 +47,7 @@ class Entity(db.Model):
         entity = Entity.query.get_or_404(entity_id)
         if entity.private != private_key:
             abort(404)
-        entity.text = entity.text + text  # TODO: do it query level
+        entity.text = text if entity.text is None else entity.text + text  # TODO: do it query level
         db.session.commit()
 
     @staticmethod
