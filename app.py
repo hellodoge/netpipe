@@ -23,19 +23,19 @@ db = SQLAlchemy(app)
 
 class Entity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    public = db.Column(db.LargeBinary(length=config.LEN_OF_SECRET), nullable=False)
-    private = db.Column(db.LargeBinary(length=config.LEN_OF_SECRET), nullable=False)
+    public = db.Column(db.String(length=config.MAX_LEN_OF_SECRET), nullable=False, unique=True)
+    private = db.Column(db.String(length=config.MAX_LEN_OF_SECRET), nullable=False, unique=True)
     text = db.Column(db.UnicodeText)
 
     @staticmethod
-    def get_text(entity_id: int, public_key: bytes) -> str:
+    def get_text(entity_id: int, public_key: str) -> str:
         entity = Entity.query.get_or_404(entity_id)
         if entity.public != public_key:
             abort(404)
         return entity.text if entity.text is not None else ''
 
     @staticmethod
-    def set_text(entity_id: int, private_key: bytes, text: str) -> None:
+    def set_text(entity_id: int, private_key: str, text: str) -> None:
         entity = Entity.query.get_or_404(entity_id)
         if entity.private != private_key:
             abort(404)
@@ -43,7 +43,7 @@ class Entity(db.Model):
         db.session.commit()
 
     @staticmethod
-    def append_text(entity_id: int, private_key: bytes, text: str) -> None:
+    def append_text(entity_id: int, private_key: str, text: str) -> None:
         entity = Entity.query.get_or_404(entity_id)
         if entity.private != private_key:
             abort(404)
@@ -52,42 +52,41 @@ class Entity(db.Model):
 
     @staticmethod
     def new(text=None):
+
+        public_key = urandom(config.LEN_OF_SECRET)
+        private_key = urandom(config.LEN_OF_SECRET)
+
         entity = Entity(
-            public=urandom(config.LEN_OF_SECRET),
-            private=urandom(config.LEN_OF_SECRET)
+            public = 'P' + base64.urlsafe_b64encode(public_key).decode('ascii'),
+            private = 'p' + base64.urlsafe_b64encode(private_key).decode('ascii')
         )
+
         if text is not None:
             entity.text = text
+
         db.session.add(entity)
         db.session.commit()
+
         return entity
 
 
-def decode_link(link: str) -> (int, bytes):
-    if len(link) < config.BASE64_LEN_OF_SECRET + 1:
+def decode_link(link: str) -> (int, str):
+    parts = link.split('!')
+    if len(parts) != 2:
         abort(404)
 
-    secret, entity_id = None, None
-
     try:
-        secret = base64.urlsafe_b64decode(link)
-    except binascii.Error:
-        abort(404)
-
-    id_encoded = link[config.BASE64_LEN_OF_SECRET:]
-    try:
-        entity_id = int(id_encoded, 16)
+        entity_id = int(parts[0])
     except ValueError:
         abort(404)
+
+    secret = parts[1]
 
     return entity_id, secret
 
 
-def encode_link(entity_id: int, secret: bytes) -> str:
-    secret_encoded = base64.urlsafe_b64encode(secret).decode('ascii')
-    id_encoded = hex(entity_id)
-
-    return secret_encoded + id_encoded[2:]
+def encode_link(entity_id: int, secret: str) -> str:
+    return f'{entity_id}!{secret}'
 
 
 @app.route('/', methods=['GET'])
