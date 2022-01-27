@@ -24,6 +24,7 @@ Endpoint                 | Method | Description
 /<private link\>         | PUT    | Replace paste with request body
 /<private link\>         | PATCH  | Append request body to paste
 /<private link\>/<text\> | GET    | Replace paste with \`text\`
+/mime/<private link>     | POST   | Set request body as mime type
 
 ### License
 This code is released under an Apache License, Version 2.0.
