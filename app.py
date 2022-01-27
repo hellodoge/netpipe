@@ -3,6 +3,7 @@
 
 from flask import Flask
 from flask import render_template, abort, request
+from flask import Response
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -26,13 +27,14 @@ class Entity(db.Model):
     public = db.Column(db.String(length=config.MAX_LEN_OF_SECRET), nullable=False, unique=True)
     private = db.Column(db.String(length=config.MAX_LEN_OF_SECRET), nullable=False, unique=True)
     text = db.Column(db.UnicodeText)
+    mime = db.Column(db.String(length=config.MAX_LEN_OF_MIME), default='text/html', nullable=False)
 
     @staticmethod
-    def get_text(entity_id: int, public_key: str) -> str:
+    def get_entity(entity_id: int, public_key: str) -> str:
         entity = Entity.query.get_or_404(entity_id)
         if entity.public != public_key:
             abort(404)
-        return entity.text if entity.text is not None else ''
+        return entity
 
     @staticmethod
     def set_text(entity_id: int, private_key: str, text: str) -> None:
@@ -48,6 +50,14 @@ class Entity(db.Model):
         if entity.private != private_key:
             abort(404)
         entity.text = text if entity.text is None else entity.text + text  # TODO: do it query level
+        db.session.commit()
+
+    @staticmethod
+    def set_mime(entity_id: int, private_key: str, mime: str) -> None:
+        entity = Entity.query.get_or_404(entity_id)
+        if entity.private != private_key:
+            abort(404)
+        entity.mime = mime
         db.session.commit()
 
     @staticmethod
@@ -109,7 +119,9 @@ def create():
 @app.route('/<entity_public>', methods=['GET'])
 def fetch(entity_public):
     entity_id, public = decode_link(entity_public)
-    return Entity.get_text(entity_id, public)
+    entity = Entity.get_entity(entity_id, public)
+    text = entity.text if entity.text != None else ''
+    return Response(text, mimetype=entity.mime)
 
 
 @app.route('/<entity_private>/<text>', methods=['GET'])
@@ -132,6 +144,11 @@ def append(entity_private):
     Entity.append_text(entity_id, private, request.get_data(as_text=True))
     return '', 200
 
+@app.route('/mime/<entity_private>', methods=['POST'])
+def update_mime(entity_private):
+    entity_id, private = decode_link(entity_private)
+    Entity.set_mime(entity_id, private, request.get_data(as_text=True))
+    return '', 200
 
 if __name__ == '__main__':
     app.run()
