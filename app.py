@@ -94,7 +94,7 @@ def encode_link(entity_id: int, secret: bytes) -> str:
 def index():
     with open('README.md', 'r') as readme:
         content = markdown.markdown(readme.read(), extensions=['tables'])
-        return render_template('index.html', content=content, site_url=Configuration.SITE_URL)
+        return render_template('index.html', content=content, site_url=request.url_root)
 
 
 @app.route('/create', methods=['GET', 'POST'])
@@ -102,8 +102,8 @@ def create():
     entity = Entity.new(text=request.get_data(as_text=True) if request.method == 'POST' else None)
 
     return {
-        'Public link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.public)}',
-        'Private link': f'{Configuration.SITE_URL}/{encode_link(entity.id, entity.private)}'
+        'Public link': f'{request.url_root}/{encode_link(entity.id, entity.public)}',
+        'Private link': f'{request.url_root}/{encode_link(entity.id, entity.private)}'
     }
 
 
