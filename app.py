@@ -144,7 +144,7 @@ def append(entity_private):
     Entity.append_text(entity_id, private, request.get_data(as_text=True))
     return '', 200
 
-@app.route('/mime/<entity_private>', methods=['POST'])
+@app.route('/<entity_private>/mime/', methods=['POST'])
 def update_mime(entity_private):
     entity_id, private = decode_link(entity_private)
     Entity.set_mime(entity_id, private, request.get_data(as_text=True))
