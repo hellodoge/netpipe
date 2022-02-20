@@ -37,11 +37,12 @@ class Entity(db.Model):
         return entity
 
     @staticmethod
-    def set_text(entity_id: int, private_key: str, text: str) -> None:
+    def set_text(entity_id: int, private_key: str, text: str, mime: str = None) -> None:
         entity = Entity.query.get_or_404(entity_id)
         if entity.private != private_key:
             abort(404)
         entity.text = text
+        if mime: entity.mime = mime
         db.session.commit()
 
     @staticmethod
@@ -61,7 +62,7 @@ class Entity(db.Model):
         db.session.commit()
 
     @staticmethod
-    def new(text=None):
+    def new(text: str = None, mime: str = None):
 
         public_key = urandom(config.LEN_OF_SECRET)
         private_key = urandom(config.LEN_OF_SECRET)
@@ -73,6 +74,9 @@ class Entity(db.Model):
 
         if text is not None:
             entity.text = text
+
+        if mime is not None:
+            entity.mime = mime
 
         db.session.add(entity)
         db.session.commit()
@@ -108,7 +112,10 @@ def index():
 
 @app.route('/create', methods=['GET', 'POST'])
 def create():
-    entity = Entity.new(text=request.get_data(as_text=True) if request.method == 'POST' else None)
+    mime = request.args.get('mime', default=None, type=str)
+    text = request.get_data(as_text=True) if request.method == 'POST' else None
+
+    entity = Entity.new(text, mime)
 
     return {
         'Public link': f'{request.url_root}/{encode_link(entity.id, entity.public)}',
@@ -133,8 +140,9 @@ def update_get(entity_private, text):
 
 @app.route('/<entity_private>', methods=['PUT'])
 def update_put(entity_private):
+    mime = request.args.get('mime', default=None, type=str)
     entity_id, private = decode_link(entity_private)
-    Entity.set_text(entity_id, private, request.get_data(as_text=True))
+    Entity.set_text(entity_id, private, request.get_data(as_text=True), mime)
     return '', 200
 
 
